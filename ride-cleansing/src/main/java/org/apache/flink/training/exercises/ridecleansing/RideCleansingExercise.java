@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.training.exercises.common.datatypes.TaxiRide;
 import org.apache.flink.training.exercises.common.sources.TaxiRideGenerator;
 import org.apache.flink.training.exercises.common.utils.GeoUtils;
-import org.apache.flink.training.exercises.common.utils.MissingSolutionException;
 
 /**
  * The Ride Cleansing exercise from the Flink training.
