@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.training.exercises.common.datatypes;
+package roshult.flink.training.source;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.training.exercises.common.utils.DataGenerator;
-import org.apache.flink.training.exercises.common.utils.GeoUtils;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 
 import javax.annotation.Nullable;
 
@@ -59,16 +59,6 @@ public class TaxiRide implements Comparable<TaxiRide>, Serializable {
         this.passengerCnt = g.passengerCnt();
         this.taxiId = g.taxiId();
         this.driverId = g.driverId();
-    }
-
-    /** Creates a TaxiRide with a subset of parameters. */
-    public TaxiRide(
-            long rideId,
-            boolean isStart,
-            Instant eventTime) {
-        this.rideId = rideId;
-        this.isStart = isStart;
-        this.eventTime = eventTime;
     }
 
     /** Creates a TaxiRide with the given parameters. */
@@ -195,6 +185,7 @@ public class TaxiRide implements Comparable<TaxiRide>, Serializable {
     }
 
     /** Gets the ride's time stamp as a long in millis since the epoch. */
+    @JsonIgnore
     public long getEventTimeMillis() {
         return eventTime.toEpochMilli();
     }

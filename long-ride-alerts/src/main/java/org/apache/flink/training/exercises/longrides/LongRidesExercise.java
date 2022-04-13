@@ -21,9 +21,14 @@ package org.apache.flink.training.exercises.longrides;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
+import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
+import org.apache.flink.connector.jdbc.JdbcSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -32,9 +37,16 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.training.exercises.common.datatypes.TaxiRide;
 import org.apache.flink.training.exercises.common.sources.TaxiRideGenerator;
+import org.apache.flink.training.exercises.longrides.params.KafkaParameters;
+import org.apache.flink.training.exercises.longrides.params.OutputParams;
 import org.apache.flink.util.Collector;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Duration;
+import java.util.Optional;
 
 /**
  * The "Long Ride Alerts" exercise.
@@ -45,14 +57,7 @@ import java.time.Duration;
  * <p>You should eventually clear any state you create.
  */
 public class LongRidesExercise {
-    private final SourceFunction<TaxiRide> source;
-    private final SinkFunction<Long> sink;
 
-    /** Creates a job using the source and sink provided. */
-    public LongRidesExercise(SourceFunction<TaxiRide> source, SinkFunction<Long> sink) {
-        this.source = source;
-        this.sink = sink;
-    }
 
     /**
      * Creates and executes the long rides pipeline.
@@ -60,13 +65,18 @@ public class LongRidesExercise {
      * @return {JobExecutionResult}
      * @throws Exception which occurs during job execution.
      */
-    public JobExecutionResult execute() throws Exception {
+    public static void main(String[] args) throws Exception {
+        ParameterTool params = ParameterTool.fromArgs(args);
+        createInitialTable(params);
 
-        // set up streaming execution environment
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        KafkaParameters kafkaParameters = KafkaParameters.fromParamTool(params);
+        OutputParams outputParams = OutputParams.fromParamTool(params);
 
-        // start the data generator
-        DataStream<TaxiRide> rides = env.addSource(source);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        StreamSetup.setupRestartsAndCheckpoints(env, outputParams.getCheckpointsPath());
+
+        DataStream<TaxiRide> taxiRideEventsDataStream = TaxiRidesSource.getSource(env, kafkaParameters);
 
         // the WatermarkStrategy specifies how to extract timestamps and generate watermarks
         WatermarkStrategy<TaxiRide> watermarkStrategy =
@@ -75,26 +85,31 @@ public class LongRidesExercise {
                                 (ride, streamRecordTimestamp) -> ride.getEventTimeMillis());
 
         // create the pipeline
-        rides.assignTimestampsAndWatermarks(watermarkStrategy)
+        taxiRideEventsDataStream.assignTimestampsAndWatermarks(watermarkStrategy)
                 .keyBy(ride -> ride.rideId)
                 .process(new AlertFunction())
-                .addSink(sink);
+                .addSink(JdbcSink.sink(
+                        "insert into taxi_alarm (rideId) values (?)",
+                        (statement, id) -> {
+                            statement.setString(1, String.valueOf(id));
+                        },
+                        JdbcExecutionOptions.builder()
+                                .withBatchSize(5)
+                                .withBatchIntervalMs(200)
+                                .withMaxRetries(5)
+                                .build(),
+                        new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                                .withUrl(Optional.ofNullable(params.get("db-url"))
+                                        .orElse("jdbc:postgresql://localhost:5432/postgres"))
+                                .withDriverName("org.postgresql.Driver")
+                                .withUsername("postgres")
+                                .withPassword("postgres")
+                                .build()));
 
-        // execute the pipeline and return the result
-        return env.execute("Long Taxi Rides");
+        // execute the pipeline
+        env.execute("Long Taxi Rides");
     }
 
-    /**
-     * Main method.
-     *
-     * @throws Exception which occurs during job execution.
-     */
-    public static void main(String[] args) throws Exception {
-        LongRidesExercise job =
-                new LongRidesExercise(new TaxiRideGenerator(), new PrintSinkFunction<>());
-
-        job.execute();
-    }
 
     @VisibleForTesting
     public static class AlertFunction extends KeyedProcessFunction<Long, TaxiRide, Long> {
@@ -178,4 +193,18 @@ public class LongRidesExercise {
             }
         }
     }
+
+
+    private static void createInitialTable(ParameterTool params) throws ClassNotFoundException, SQLException {
+        Class.forName("org.postgresql.Driver");
+        Connection c =
+                DriverManager.getConnection(
+                        Optional.ofNullable(params.get("db-url"))
+                                .orElse("jdbc:postgresql://localhost:5432/postgres"), "postgres", "postgres");
+        Statement stmt = c.createStatement();
+        stmt.execute("create table if not exists taxi_alarm(rideId varchar(255));");
+        stmt.close();
+        c.close();
+    }
+
 }

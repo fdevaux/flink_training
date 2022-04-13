@@ -1,6 +1,6 @@
 Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/xenial64"
-  config.vm.hostname = "march-28-flink-docker-engine"                   # hostname of the virtual machine
+  config.vm.hostname = "flink-training-docker-engine"                   # hostname of the virtual machine
   config.vm.network "forwarded_port", host: 2375, guest: 2375           # forwarding docker port to the host, don't change this!
 
   config.vm.synced_folder ".", "/vagrant", disabled: true
@@ -16,15 +16,15 @@ Vagrant.configure("2") do |config|
   config.vm.network "forwarded_port", host: 7001, guest: 7001           # forwarding job-manager-1 port
   config.vm.network "forwarded_port", host: 7002, guest: 7002           # forwarding job-manager-2 port
   config.vm.network "forwarded_port", host: 7003, guest: 7003           # forwarding job-manager-3 port
-  config.vm.network "forwarded_port", host: 8080, guest: 8080           # forwarding postgres port
+  config.vm.network "forwarded_port", host: 5432, guest: 5432           # forwarding postgres port
   config.vm.network "forwarded_port", host: 9090, guest: 9090           # forwarding prometheus port
   config.vm.network "forwarded_port", host: 3000, guest: 3000           # forwarding grafana port
 
   config.vm.provision "shell", path: "provision.sh"                     # the provisioning script used to install docker and expose it's port
   config.vm.provider :virtualbox do |vb|
       vb.customize [ "modifyvm", :id, "--uartmode1", "disconnected" ]   # disabling the log file generation on host
-      vb.name = "march-28-flink-docker-engine"                          # virtual machine name in virtualbox
+      vb.name = "flink-training-docker-engine"                          # virtual machine name in virtualbox
       vb.memory = 8192                                                  # your virtual machine's memory, adjust based on you need
-      vb.cpus = 6                                                       # your virtual machine's cpu, adjust based on you need
+      vb.cpus = 2                                                       # your virtual machine's cpu, adjust based on you need
   end
 end

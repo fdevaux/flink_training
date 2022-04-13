@@ -1,0 +1,1 @@
+{"virtualbox":{"/docker-compose":{"owner":"root","group":"root","mount_options":["dmode=777,fmode=777","uid=0","gid=0","_netdev"],"guestpath":"/docker-compose","hostpath":"/Users/francoisdevaux/workspace/TRAINING/flink_training/docker-compose","disabled":false,"__vagrantfile":true}}}

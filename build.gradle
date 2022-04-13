@@ -51,10 +51,10 @@ subprojects {
     apply plugin: 'eclipse'
 
     ext {
-        javaVersion = '1.8'
-        flinkVersion = '1.14.0'
+        javaVersion = '1.11'
+        flinkVersion = '1.14.4'
         scalaBinaryVersion = '2.12'
-        log4jVersion = '2.12.1'
+        log4jVersion = '2.17.2'
         junitVersion = '4.13'
     }
 
@@ -74,6 +74,9 @@ subprojects {
             mavenContent {
                 snapshotsOnly()
             }
+            maven {
+                url "https://packages.confluent.io/maven"
+            }
         }
     }
 
@@ -87,6 +90,16 @@ subprojects {
         shadow "org.apache.flink:flink-java:${flinkVersion}"
         shadow "org.apache.flink:flink-streaming-java_${scalaBinaryVersion}:${flinkVersion}"
         shadow "org.apache.flink:flink-streaming-scala_${scalaBinaryVersion}:${flinkVersion}"
+        shadow "org.apache.flink:flink-connector-kafka_${scalaBinaryVersion}:${flinkVersion}"
+        shadow "org.apache.flink:flink-connector-files:${flinkVersion}"
+        shadow "org.apache.flink:flink-connector-jdbc_${scalaBinaryVersion}:${flinkVersion}"
+        shadow "org.apache.flink:flink-shaded-jackson:2.12.4-15.0"
+        shadow 'org.postgresql:postgresql:42.2.10'
+        shadow "io.confluent:kafka-avro-serializer:5.3.0"
+        shadow "io.confluent:kafka-schema-registry:5.2.1"
+        shadow "io.confluent:kafka-schema-registry:5.2.1:tests"
+        shadow "io.confluent:kafka-schema-registry-client:5.3.0"
+
 
         if (project != project(":common")) {
             implementation project(path: ':common')
